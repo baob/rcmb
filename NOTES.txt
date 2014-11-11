@@ -1,0 +1,9 @@
+git show-branch --topics --current --sha1-name master  # show commits unique to my branche
+
+git show-branch --topics --sha1-name master^ master^2 # show commits unique to last merge	
+
+
+
+diff -u <(git rev-list --first-parent HEAD) \
+             <(git rev-list --first-parent master) | \
+     sed -ne 's/^ //p'

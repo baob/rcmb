@@ -1,0 +1,58 @@
+#!/usr/bin/env ruby
+
+require 'pry'
+
+base_branch = 'master' # chnage to script parameter later
+
+# This show-branch command finds the commits that are unique to the branch.
+# This almost certainly superior to git diff --name-status master..HEAD
+# when considering branches that may have had master merged in from the start.
+# This way, we're only rubocopping stuff the committers changed, not what they
+# merged in from master
+show_branch_result = `git show-branch --topics --current --sha1-name #{base_branch}`
+
+commits = show_branch_result.split("\n").inject([]) do |commits, line|
+  if (split1 = line.split('['))[1] && split1[0] =~ /\*/
+    if (split2 = split1[1].split(']'))[0]
+      commits << split2[0]
+      #puts "kept      line: #{line}"
+    else
+      #puts "discarded line: #{line}"
+    end
+  else
+    #puts "discarded line: #{line}"
+  end
+  commits
+end
+
+commits -= [base_branch]
+
+commits.reverse!
+branch_name = commits.pop
+puts "branch is #{branch_name}"
+
+result_files = commits.inject([]) do |files, commit|
+  whatchanged_result = `git whatchanged #{commit}^..#{commit}`
+  wc_result_files = whatchanged_result.split("\n").inject([]) do |wc_files, line|
+    if (split1 = line.split('...'))[2]
+      if (split2 = split1[2].strip.split(' '))[1] && split2[0].strip != 'D'
+        wc_files << split2[1]
+        #puts "kept      line: #{line}"
+      else
+        #puts "discarded line: #{line}"
+      end
+    else
+      #puts "discarded line: #{line}"
+    end
+    wc_files
+  end
+  files += wc_result_files
+  files
+end
+
+files = result_files.uniq.select{ |f| File.exists?(f) }
+command = "rubocop #{files.join(' ')}"
+
+puts
+puts "Executing for you: #{command}\n\n"
+system( "rubocop #{files.join(' ')}" )
